@@ -42,7 +42,8 @@ import kotlin.math.roundToInt
  * The controls stand on a grid of 4 × 6 cells, on up to three pages stacked vertically
  * ([CcLayout], [Prefs.ccLayout]): each at its place and at one of its sizes, holes allowed. A
  * control with nothing to do (no inputs, no forecast, nothing playing) stays at its place, idle.
- * Edit mode (a long press on the home screen's Control Center button, or the settings) moves,
+ * Edit mode (a long press on the home screen's Control Center button or on a control of the open
+ * panel, other than the player, or the settings) moves,
  * resizes, removes and adds them.
  *
  * The glass is cheap to draw: the home screen behind the controls is captured once at a quarter
@@ -1476,6 +1477,13 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     }
 
     // ---- edit mode --------------------------------------------------------------------
+
+    /** OK held on a control while the panel is open (not editing): edit mode, on the focused control. False when it does not apply. */
+    fun editFromHold(): Boolean {
+        if (!isOpen || editing || expanded || morphing) return false
+        startEdit(false)
+        return true
+    }
 
     private fun startEdit(first: Boolean) {
         editing = true
