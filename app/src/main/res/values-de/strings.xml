@@ -36,6 +36,7 @@
     <!-- Accueil : en-tête et date -->
     <string name="home_date_pattern">EEEE, d. MMMM</string>
     <string name="home_network_settings">Netzwerkeinstellungen</string>
+    <string name="home_vpn_connected">VPN verbunden</string>
     <string name="home_control_center">Kontrollzentrum</string>
 
     <!-- Accueil : fond d'écran -->
