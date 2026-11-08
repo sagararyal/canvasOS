@@ -78,7 +78,9 @@ class TileCell(ctx: Context, val tileW: Int, val tileH: Int) : FrameLayout(ctx) 
         val ry0 = if (tilt) fromDx * 6f else card.rotationY
         // The lift is an elevation, which Android renders as a shadow on the card's rounded outline:
         // hidden under an opaque tile, plain to see behind a folder's see-through mosaic, so none there.
-        val z1 = if (f && entry?.folder == null) dp(4).toFloat() else 0f
+        // Only with the tvOS effect: the shadow is drawn again on every frame of the zoom, and the
+        // simple effect is the one weak TVs get (Prefs.focusTvos).
+        val z1 = if (f && tvos && entry?.folder == null) dp(4).toFloat() else 0f
         val z0 = card.translationZ
         val l0 = label.alpha
         val l1 = if (f && showLabel) 1f else 0f

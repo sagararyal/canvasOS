@@ -90,9 +90,8 @@ class AppRepo(private val ctx: Context) {
     private val prefs = Prefs(ctx)
     /** For the pictures of pinned inputs ([com.getisolated.canvasos.tv.TvAdapter.inputBanner]). */
     private val tv by lazy { TvControls(ctx) }
-    private val tiles = object : LruCache<String, Bitmap>(24 * 1024 * 1024) {
-        override fun sizeOf(key: String, value: Bitmap) = value.byteCount
-    }
+    /** One cache for every AppRepo (home screen, settings, phone page): the same tiles were drawn and kept three times. */
+    private val tiles = sharedTiles(ctx)
 
     fun allApps(): List<AppEntry> {
         val byPkg = LinkedHashMap<String, AppEntry>()
@@ -384,6 +383,21 @@ class AppRepo(private val ctx: Context) {
     }
 
     companion object {
+        @Volatile private var shared: LruCache<String, Bitmap>? = null
+
+        /** 24 MB of tiles (about 65 at 400 × 225), 12 MB on a low-end TV. */
+        private fun sharedTiles(ctx: Context): LruCache<String, Bitmap> = shared ?: synchronized(this) {
+            shared ?: object : LruCache<String, Bitmap>((if (Device.isLowEnd(ctx)) 12 else 24) * 1024 * 1024) {
+                override fun sizeOf(key: String, value: Bitmap) = value.byteCount
+            }.also { shared = it }
+        }
+
+        /**
+         * Memory is short, or the home screen left the front: the cached tiles go. The ones on screen stay
+         * drawn (their views hold them); the others are drawn again when they are next shown.
+         */
+        fun trimTiles() { shared?.evictAll() }
+
         private const val CATEGORY_APPSTORE_LAUNCHER = "android.intent.category.APPSTORE_LAUNCHER"
         private val UNLISTED_ENTRIES = listOf(
             ComponentName("com.xiaomi.mitv.mediaexplorer", "com.xiaomi.mitv.mediaexplorer.NewScraperMainEntryActivity"), // 高清播放器

@@ -18,6 +18,7 @@ import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import android.view.View
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -37,7 +38,11 @@ object LiquidGlass {
      * refracts; the rim itself is a thin line lit from the top left and tinted
      * by what is behind it.
      */
-    fun bake(source: Bitmap, screenW: Int, screenH: Int, rect: Rect, radius: Float, overlay: Drawable? = null): Bitmap {
+    fun bake(source: Bitmap, screenW: Int, screenH: Int, rect: Rect, radius: Float, overlay: Drawable? = null): Bitmap =
+        // One bake at a time: they share [scratch]. They are rare enough (a new picture) not to queue.
+        synchronized(this) { bakeLocked(source, screenW, screenH, rect, radius, overlay) }
+
+    private fun bakeLocked(source: Bitmap, screenW: Int, screenH: Int, rect: Rect, radius: Float, overlay: Drawable?): Bitmap {
         val w = rect.width()
         val h = rect.height()
         val zone = min(h * 0.26f, radius * 1.4f)    // refracting band along the rim
@@ -45,14 +50,18 @@ object LiquidGlass {
         val blurR = 7
         val margin = (pull + blurR * 2 + 2).toInt()
 
-        // The part of the screen around the slab, as the user sees it.
+        // The part of the screen around the slab, as the user sees it, drawn at [SCALE] and blurred
+        // there: it is blurred anyway, and a quarter of the pixels is a quarter of the work on a TV's CPU.
         val x0 = rect.left - margin
         val y0 = rect.top - margin
         val cw = w + margin * 2
         val ch = h + margin * 2
-        val region = Bitmap.createBitmap(cw, ch, Bitmap.Config.ARGB_8888)
+        val sw = ceil(cw * SCALE).toInt()
+        val sh = ceil(ch * SCALE).toInt()
+        val region = Bitmap.createBitmap(sw, sh, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(region)
         canvas.drawColor(Color.BLACK)
+        canvas.scale(SCALE, SCALE)
         canvas.translate(-x0.toFloat(), -y0.toFloat())
         val s = max(screenW / source.width.toFloat(), screenH / source.height.toFloat())
         val m = Matrix().apply {
@@ -61,12 +70,15 @@ object LiquidGlass {
         }
         canvas.drawBitmap(source, m, Paint(Paint.FILTER_BITMAP_FLAG))
         overlay?.let { it.setBounds(0, 0, screenW, screenH); it.draw(canvas) }
-        val src = IntArray(cw * ch)
-        region.getPixels(src, 0, cw, 0, 0, cw, ch)
+        val buf = scratch ?: Scratch().also { scratch = it }
+        val src = buf.src(sw * sh)
+        region.getPixels(src, 0, sw, 0, 0, sw, sh)
         region.recycle()
-        repeat(2) { boxBlur(src, cw, ch, blurR) }
+        val br = (blurR * SCALE + 0.5f).toInt().coerceAtLeast(1)
+        repeat(2) { boxBlur(src, sw, sh, br, buf.tmp(sw * sh)) }
 
-        val out = IntArray(w * h)
+        val result = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val out = buf.out(w)
         val hw = w / 2f
         val hh = h / 2f
         val rimW = 2.2f
@@ -81,7 +93,7 @@ object LiquidGlass {
                 val oy = max(qy, 0f)
                 val sdf = sqrt(ox * ox + oy * oy) + min(max(qx, qy), 0f) - radius
                 val a = (0.5f - sdf).coerceIn(0f, 1f)
-                if (a <= 0f) continue
+                if (a <= 0f) { out[i] = 0; continue }
                 val depth = -sdf
                 var nx: Float
                 var ny: Float
@@ -94,7 +106,8 @@ object LiquidGlass {
 
                 val t = (1f - depth / zone).coerceIn(0f, 1f)
                 val off = t * t * pull
-                val c = sample(src, cw, ch, px + nx * off + margin, py + ny * off + margin)
+                // Bilinear, so the small blurred picture does not show its pixels where the rim stretches it.
+                val c = sample(src, sw, sh, (px + nx * off + margin) * SCALE - 0.5f, (py + ny * off + margin) * SCALE - 0.5f)
                 var r = Color.red(c).toFloat()
                 var g = Color.green(c).toFloat()
                 var b = Color.blue(c).toFloat()
@@ -116,20 +129,57 @@ object LiquidGlass {
                     val k = (1f - depth / zone) * 0.16f * max(facing, 0f)
                     r += (255f - r) * k; g += (255f - g) * k; b += (255f - b) * k
                 }
-                out[j * w + i] = Color.argb((a * 255).toInt(), clamp(r), clamp(g), clamp(b))
+                out[i] = Color.argb((a * 255).toInt(), clamp(r), clamp(g), clamp(b))
             }
+            result.setPixels(out, 0, w, 0, j, w, 1)
         }
-        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+        return result
     }
+
+    /** The scale the picture behind the slab is blurred at. */
+    private const val SCALE = 0.5f
+
+    /**
+     * Pixel arrays kept between bakes, so a bake does not leave megabytes of garbage behind it for the
+     * collector on a 1.5 GB TV; about 1.5 MB, given back by [trim].
+     */
+    private class Scratch {
+        private var a = IntArray(0)
+        private var b = IntArray(0)
+        private var c = IntArray(0)
+        fun src(n: Int): IntArray { if (a.size < n) a = IntArray(n); return a }
+        fun tmp(n: Int): IntArray { if (b.size < n) b = IntArray(n); return b }
+        fun out(n: Int): IntArray { if (c.size < n) c = IntArray(n); return c }
+    }
+    private var scratch: Scratch? = null
+
+    /** Memory is short: the bake's arrays go, made again by the next bake. */
+    fun trim() = synchronized(this) { scratch = null }
 
     private fun clamp(v: Float) = v.toInt().coerceIn(0, 255)
 
-    private fun sample(px: IntArray, w: Int, h: Int, x: Float, y: Float): Int =
-        px[y.toInt().coerceIn(0, h - 1) * w + x.toInt().coerceIn(0, w - 1)]
+    /** The colour at ([x], [y]) in pixel-centre coordinates, blended from the four pixels around it. */
+    private fun sample(px: IntArray, w: Int, h: Int, x: Float, y: Float): Int {
+        val fx = x.coerceIn(0f, (w - 1).toFloat())
+        val fy = y.coerceIn(0f, (h - 1).toFloat())
+        val ix = fx.toInt()
+        val iy = fy.toInt()
+        val ix1 = min(ix + 1, w - 1)
+        val iy1 = min(iy + 1, h - 1)
+        val ax = fx - ix
+        val ay = fy - iy
+        val c00 = px[iy * w + ix]; val c10 = px[iy * w + ix1]
+        val c01 = px[iy1 * w + ix]; val c11 = px[iy1 * w + ix1]
+        fun ch(shift: Int): Int {
+            val top = ((c00 shr shift) and 255) * (1f - ax) + ((c10 shr shift) and 255) * ax
+            val bottom = ((c01 shr shift) and 255) * (1f - ax) + ((c11 shr shift) and 255) * ax
+            return (top * (1f - ay) + bottom * ay + 0.5f).toInt()
+        }
+        return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+    }
 
-    /** Separable box blur in place; three channels, opaque output. */
-    fun boxBlur(px: IntArray, w: Int, h: Int, r: Int) {
-        val tmp = IntArray(px.size)
+    /** Separable box blur in place; three channels, opaque output. [tmp] holds at least [w] × [h] pixels, if given. */
+    fun boxBlur(px: IntArray, w: Int, h: Int, r: Int, tmp: IntArray = IntArray(w * h)) {
         pass(px, tmp, w, h, r, horizontal = true)
         pass(tmp, px, w, h, r, horizontal = false)
     }
@@ -193,7 +243,8 @@ object SceneGlass {
         }
         val px = IntArray(w * h)
         bmp.getPixels(px, 0, w, 0, 0, w, h)
-        repeat(3) { LiquidGlass.boxBlur(px, w, h, 7) }
+        val tmp = IntArray(w * h)
+        repeat(3) { LiquidGlass.boxBlur(px, w, h, 7, tmp) }
         bmp.setPixels(px, 0, w, 0, 0, w, h)
         bmp.prepareToDraw()
         return GlassSample(bmp, region.left.toFloat(), region.top.toFloat(), SCALE)

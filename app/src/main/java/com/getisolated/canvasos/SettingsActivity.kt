@@ -239,8 +239,8 @@ class SettingsActivity : Activity() {
             isVerticalScrollBarEnabled = false
             clipToPadding = false
             clipChildren = false
-            // A fading edge redraws through an offscreen layer while scrolling: not on weak TVs.
-            if (!Device.isLowEnd(this@SettingsActivity)) {
+            // A fading edge redraws through an offscreen layer while scrolling: not in performance mode.
+            if (!prefs.performance(this@SettingsActivity)) {
                 isVerticalFadingEdgeEnabled = true
                 setFadingEdgeLength(u(26))
             }
@@ -478,15 +478,23 @@ class SettingsActivity : Activity() {
         row("Lieu de la météo", "Pour choisir une autre ville : la page téléphone (onglet Réglages, section Météo), ou un ordinateur avec la commande CONFIG (weather_city).",
             { Weather.placeLabel(prefs).ifEmpty { "Pas encore défini" } }) {}
         section("Effets")
+        row("Mode performances", "Activé : l'aspect le plus léger, pour les téléviseurs peu puissants. L'app sélectionnée s'agrandit sans s'incliner, " +
+            "le Centre de contrôle est un panneau sombre plutôt que du verre et le Top Shelf change d'image toutes les 15 s au lieu de 8. " +
+            "Effet de sélection et Style du Centre de contrôle restent réglables : sur Auto, ils suivent ce mode." +
+            "\nAuto l'active sur les téléviseurs peu puissants (moins de 2,5 Go de mémoire ou de 4 cœurs, ou Android 9 et 10).", {
+            auto(prefs.perfMode, prefs.performance(this), "Activé", "Désactivé")
+        }) {
+            prefs.perfMode = next(prefs.perfMode, Prefs.PERF_ON, Prefs.PERF_OFF)
+        }
         row("Effet de sélection", "tvOS : l'app sélectionnée s'agrandit, s'incline selon la direction et un reflet passe dessus. Simple : elle s'agrandit seulement." +
-            "\nAuto choisit Simple sur les téléviseurs peu puissants.", {
+            "\nAuto choisit Simple quand le mode performances est activé.", {
             auto(prefs.focusStyle, prefs.focusTvos(this), "tvOS", "Simple")
         }) {
             prefs.focusStyle = next(prefs.focusStyle, Prefs.FOCUS_TVOS, Prefs.FOCUS_SIMPLE)
         }
         section("Centre de contrôle")
         row("Style du Centre de contrôle", "Verre : du verre dépoli qui laisse voir l'image derrière ; le bouton sélectionné devient blanc. Panneau : l'ancien panneau sombre." +
-            "\nAuto choisit Verre sur tous les téléviseurs.", {
+            "\nAuto choisit Panneau quand le mode performances est activé, Verre sinon.", {
             auto(prefs.ccStyle, prefs.ccGlass(this), "Verre", "Panneau")
         }) {
             prefs.ccStyle = next(prefs.ccStyle, Prefs.CC_GLASS, Prefs.CC_PANEL)
