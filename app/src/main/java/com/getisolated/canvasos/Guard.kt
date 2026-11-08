@@ -153,6 +153,7 @@ object Guard {
         ensureAdb(ctx)
         if (!hasSecureSettings(ctx)) return
         keepScreensaver(ctx)
+        if (FireOsAdapter.isFireOs()) ensureAlarmNow(ctx)
         if (!Prefs(ctx).guard && !Prefs(ctx).captureKeys) return
         val me = service(ctx)
         val entries = enabledServices(ctx)
@@ -169,6 +170,24 @@ object Guard {
             }
             Settings.Secure.putInt(ctx.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
         }.onFailure { Log.w(TAG, "could not switch the home guard on", it) }
+    }
+
+    /**
+     * Fire OS: after Home, an app's own activity starts wait about 5 s, so canvasOS comes back through an
+     * alarm set for now (FireHome). AlarmManager itself holds such an alarm for min_futurity, 5 s by
+     * default; at 0 it fires at once. Kept in alarm_manager_constants next to whatever else is there.
+     */
+    fun ensureAlarmNow(ctx: Context) {
+        val r = ctx.contentResolver
+        val key = "alarm_manager_constants"
+        val now = Settings.Global.getString(r, key).orEmpty()
+        val parts = now.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        if (parts.any { it.replace(" ", "") == "min_futurity=0" }) return
+        val merged = (parts.filterNot { it.substringBefore('=').trim() == "min_futurity" } + "min_futurity=0").joinToString(",")
+        runCatching {
+            Settings.Global.putString(r, key, merged)
+            Log.i(TAG, "alarm_manager_constants was \"$now\"; set min_futurity=0")
+        }
     }
 
     fun ensureAdb(ctx: Context) {
