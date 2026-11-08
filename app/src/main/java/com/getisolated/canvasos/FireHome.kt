@@ -166,10 +166,14 @@ class FireHome(private val service: AccessibilityService) {
      * [homes] are the stock HOME activities ([HomeGuardService.stockHomes]); [activity] is false for
      * dialogs and overlays, canvasOS's own banners among them.
      */
+    /** The app in front before Amazon's home, when it was an ordinary app (not canvasOS, not Amazon's screens). */
+    private var fromApp: String? = null
+
     fun onWindow(pkg: String, cls: String, activity: Boolean, homes: Map<String, Set<String>>) {
         val now = SystemClock.uptimeMillis()
         if (pkg == service.packageName) {
             if (!activity) return
+            fromApp = null
             inAppstore = false
             hideCover()
             return
@@ -178,6 +182,7 @@ class FireHome(private val service: AccessibilityService) {
         if (pkg.startsWith("com.amazon.tv.settings") || (pkg == FireOsAdapter.LAUNCHER && cls.contains("Settings"))) {
             if (now - lastSettingsAt > SETTINGS_GRACE_MS) Log.i(TAG, "$pkg/$cls in front; standing down")
             lastSettingsAt = now
+            fromApp = null
             homeInGrace = false
             handler.removeCallbacks(decide)
             handler.removeCallbacks(verify)
@@ -187,6 +192,7 @@ class FireHome(private val service: AccessibilityService) {
         // The Appstore's own activity only hands over to Amazon's home ([appstorePoll]).
         if (pkg == APPSTORE) {
             Log.i(TAG, "the Appstore is opening; leaving Amazon's home to it")
+            fromApp = null
             handler.removeCallbacks(decide)
             handler.removeCallbacks(verify)
             hideCover()
@@ -196,6 +202,8 @@ class FireHome(private val service: AccessibilityService) {
         if (cls !in homes[pkg].orEmpty()) {
             // Another app or an input came to the front: whatever was being decided is over.
             if (activity) {
+                // Amazon's launcher screens can lead to the Appstore inside Amazon's home: no shortcut after them.
+                fromApp = if (pkg == FireOsAdapter.LAUNCHER || pkg.startsWith("com.amazon.tv.")) null else pkg
                 homeInGrace = false
                 handler.removeCallbacks(decide)
                 handler.removeCallbacks(verify)
@@ -212,6 +220,20 @@ class FireHome(private val service: AccessibilityService) {
         }
         if (now - lastLaunchAt < DEBOUNCE_MS || cover != null) return
         lastLaunchAt = now
+        val from = fromApp
+        fromApp = null
+        if (from != null) {
+            // From inside an app, Amazon's home only comes up for Home: the Appstore and Amazon's
+            // Settings open from canvasOS or from Amazon's own screens. No need to wait for its tabs,
+            // which take seconds when Fire OS closed the launcher for memory.
+            Log.i(TAG, "Amazon's home came up over $from: Home; bringing canvasOS back at once")
+            inAppstore = false
+            handler.removeCallbacks(appstorePoll)
+            handler.removeCallbacks(decide)
+            showCover()
+            launch()
+            return
+        }
         Log.i(TAG, "Amazon's home came to the front; looking at what it shows")
         startDeciding()
     }
