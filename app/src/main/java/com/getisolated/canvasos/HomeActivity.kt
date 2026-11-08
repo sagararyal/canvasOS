@@ -91,7 +91,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     private lateinit var avatar: IconButton
     private lateinit var netButton: IconButton
     /** Shown right of [netButton] while a VPN carries the traffic; the system's own VPN icon. */
-    private lateinit var vpnIcon: android.widget.ImageView
+    private lateinit var vpnIcon: IconButton
     /** Follows the default network, so the VPN icon comes and goes while the home screen is up. */
     private var netCallback: ConnectivityManager.NetworkCallback? = null
     private lateinit var ccButton: IconButton
@@ -456,14 +456,13 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         icons.addView(clockText, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
         buildWeather(icons)
         icons.addView(netButton, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(6) })
-        vpnIcon = android.widget.ImageView(this).apply {
-            setImageDrawable(vpnDrawable())
-            setColorFilter(Color.WHITE)
+        vpnIcon = IconButton(this, 0) { vpnSheet() }.apply {
+            id = View.generateViewId()
+            vpnDrawable()?.mutate()?.apply { setTint(Color.WHITE) }?.let { setIcon(it) }
             contentDescription = str(R.string.home_vpn_connected)
-            isFocusable = false
             visibility = View.GONE
         }
-        icons.addView(vpnIcon, LinearLayout.LayoutParams(dp(16), dp(16)).apply { marginEnd = dp(10) })
+        icons.addView(vpnIcon, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(6) })
         icons.addView(ccButton, LinearLayout.LayoutParams(dp(28), dp(28)))
         avatar = IconButton(this, 0, portrait = true) { profileSheet() }.apply {
             id = View.generateViewId()
@@ -474,7 +473,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         header.addView(icons, FrameLayout.LayoutParams(-2, -2, Gravity.END or Gravity.TOP).apply {
             rightMargin = dp(32); topMargin = dp(26)
         })
-        listOf(netButton, ccButton, avatar).forEach { b ->
+        listOf(netButton, vpnIcon, ccButton, avatar).forEach { b ->
             b.setOnKeyListener { _, code, e ->
                 if (e.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
                 when (code) {
@@ -979,7 +978,45 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         netButton.alpha = if (caps == null) 0.4f else 1f
         // A VPN app (NordVPN, WireGuard, Proton…) becomes the default network while connected.
         val vpn = caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-        if (::vpnIcon.isInitialized) vpnIcon.visibility = if (vpn) View.VISIBLE else View.GONE
+        if (::vpnIcon.isInitialized) {
+            vpnIcon.visibility = if (vpn) View.VISIBLE else View.GONE
+            // Right from Réseau and Left from the Control Center go through the VPN button only while it shows.
+            netButton.nextFocusRightId = if (vpn) vpnIcon.id else ccButton.id
+            ccButton.nextFocusLeftId = if (vpn) vpnIcon.id else netButton.id
+            vpnIcon.nextFocusLeftId = netButton.id
+            vpnIcon.nextFocusRightId = ccButton.id
+        }
+    }
+
+    /**
+     * OK on the VPN button: what the connection is (the VPN's interface, its addresses and DNS), and
+     * the installed VPN apps (those offering a VpnService) to open. Android does not tell other apps
+     * which app owns a VPN, so they are all listed.
+     */
+    private fun vpnSheet() {
+        val cm = getSystemService(ConnectivityManager::class.java)
+        val net = cm.allNetworks.firstOrNull { n ->
+            runCatching { cm.getNetworkCapabilities(n)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true }.getOrDefault(false)
+        }
+        val lp = net?.let { runCatching { cm.getLinkProperties(it) }.getOrNull() }
+        val addresses = lp?.linkAddresses?.joinToString(", ") { it.address.hostAddress.orEmpty() }.orEmpty()
+        val dns = lp?.dnsServers?.joinToString(", ") { it.hostAddress.orEmpty() }.orEmpty()
+        val sheet = Sheet(root).title(str(R.string.home_vpn_title))
+        lp?.interfaceName?.let { sheet.line(str(R.string.home_vpn_interface, it)) }
+        if (addresses.isNotEmpty()) sheet.line(str(R.string.home_vpn_address, addresses))
+        if (dns.isNotEmpty()) sheet.line(str(R.string.home_vpn_dns, dns))
+        val apps = packageManager.queryIntentServices(Intent(android.net.VpnService.SERVICE_INTERFACE), 0)
+            .map { it.serviceInfo.packageName }.distinct().filter { it != packageName }
+            .mapNotNull { p ->
+                val launch = packageManager.getLeanbackLaunchIntentForPackage(p) ?: packageManager.getLaunchIntentForPackage(p)
+                launch?.let { Triple(p, runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(p, 0)).toString() }.getOrDefault(p), it) }
+            }
+            .sortedBy { it.second.lowercase() }
+        for ((_, label, launch) in apps) {
+            sheet.button(str(R.string.home_vpn_open, label)) { runCatching { startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+        }
+        sheet.button(str(R.string.home_cancel)) {}
+        showSheet(sheet, restoreFocusTo = vpnIcon.id)
     }
 
     /** The system's VPN status icon (the key of the status bar), or ours where the firmware has none. */

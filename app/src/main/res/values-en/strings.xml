@@ -37,6 +37,11 @@
     <string name="home_date_pattern">EEEE, MMMM d</string>
     <string name="home_network_settings">Network Settings</string>
     <string name="home_vpn_connected">VPN connected</string>
+    <string name="home_vpn_title">VPN</string>
+    <string name="home_vpn_interface">Interface: %1$s</string>
+    <string name="home_vpn_address">Address: %1$s</string>
+    <string name="home_vpn_dns">DNS: %1$s</string>
+    <string name="home_vpn_open">Open %1$s</string>
     <string name="home_control_center">Control Center</string>
 
     <!-- Accueil : fond d'écran -->
