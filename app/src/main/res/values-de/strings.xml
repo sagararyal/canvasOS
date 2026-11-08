@@ -293,12 +293,14 @@
     <string name="settings_weather_place_about">Für eine andere Stadt: die Handy-Seite (Tab Einstellungen, Abschnitt Wetter) oder ein Computer mit dem Befehl CONFIG (weather_city).</string>
     <string name="settings_weather_place_unset">Noch nicht festgelegt</string>
     <string name="settings_effects">Effekte</string>
+    <string name="settings_perf_mode">Leistungsmodus</string>
+    <string name="settings_perf_mode_about">An: das leichteste Aussehen, für leistungsschwache Fernseher. Die ausgewählte App wird größer, ohne sich zu neigen, das Kontrollzentrum ist ein dunkles Panel statt Glas, und das Top Shelf wechselt das Bild alle 15 s statt alle 8. Auswahleffekt und Stil des Kontrollzentrums bleiben einstellbar: Auf Auto folgen sie diesem Modus.\nAuto schaltet ihn auf leistungsschwachen Fernsehern ein (unter 2,5 GB Speicher oder 4 Kernen, oder Android 9 und 10).</string>
     <string name="settings_focus_effect">Fokuseffekt</string>
-    <string name="settings_focus_effect_about">tvOS: Die ausgewählte App wird größer, neigt sich in die Richtung, und ein Glanz läuft darüber. Einfach: Sie wird nur größer.\nAuto wählt Einfach auf leistungsschwachen Fernsehern.</string>
+    <string name="settings_focus_effect_about">tvOS: Die ausgewählte App wird größer, neigt sich in die Richtung, und ein Glanz läuft darüber. Einfach: Sie wird nur größer.\nAuto wählt Einfach, wenn der Leistungsmodus an ist.</string>
     <string name="settings_focus_simple">Einfach</string>
     <string name="settings_control_center">Kontrollzentrum</string>
     <string name="settings_cc_style">Stil des Kontrollzentrums</string>
-    <string name="settings_cc_style_about">Glas: Milchglas, durch das man das Bild dahinter sieht; die ausgewählte Schaltfläche wird weiß. Panel: das alte dunkle Panel.\nAuto wählt Glas auf allen Fernsehern.</string>
+    <string name="settings_cc_style_about">Glas: Milchglas, durch das man das Bild dahinter sieht; die ausgewählte Schaltfläche wird weiß. Panel: das alte dunkle Panel.\nAuto wählt Panel, wenn der Leistungsmodus an ist, sonst Glas.</string>
     <string name="settings_cc_glass">Glas</string>
     <string name="settings_cc_panel">Panel</string>
     <string name="settings_cc_customize">Kontrollzentrum anpassen</string>

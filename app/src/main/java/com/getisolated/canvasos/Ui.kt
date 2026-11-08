@@ -138,12 +138,16 @@ const val FONT_BOLD = "sans-serif-medium"
  */
 object Fonts {
     private val cache = HashMap<Int, Typeface>()
+    private var file: java.io.File? = null
 
     /** Any thread: the phone page's server draws profile avatars too. */
     @Synchronized
     fun inter(ctx: Context, weight: Int): Typeface = cache.getOrPut(weight) {
         try {
-            Typeface.Builder(ctx.assets, "inter.ttf")
+            // From a file, every weight maps the same pages; from the APK's assets, each weight would
+            // inflate the whole compressed font again and keep its own copy of it.
+            val f = interFile(ctx)
+            (if (f != null) Typeface.Builder(f) else Typeface.Builder(ctx.assets, "inter.ttf"))
                 .setFontVariationSettings("'wght' $weight")
                 .setWeight(weight)
                 .setFallback("sans-serif")
@@ -151,6 +155,23 @@ object Fonts {
         } catch (e: Exception) {
             Typeface.create(if (weight >= 500) FONT_BOLD else "sans-serif", Typeface.NORMAL)
         }
+    }
+
+    /** inter.ttf copied out of the APK once per version (an update may bring a new font); null if it cannot be. */
+    private fun interFile(ctx: Context): java.io.File? {
+        file?.let { return it }
+        val dir = java.io.File(ctx.applicationContext.noBackupFilesDir, "fonts")
+        val f = java.io.File(dir, "inter-${BuildConfig.VERSION_CODE}.ttf")
+        return runCatching {
+            if (!f.isFile) {
+                dir.mkdirs()
+                dir.listFiles()?.forEach { it.delete() }
+                val tmp = java.io.File(dir, f.name + ".part")
+                ctx.assets.open("inter.ttf").use { input -> tmp.outputStream().use { input.copyTo(it) } }
+                if (!tmp.renameTo(f)) error("rename failed")
+            }
+            f
+        }.getOrNull().also { file = it }
     }
 }
 

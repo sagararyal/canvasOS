@@ -1,0 +1,5 @@
+# Profil de référence (baseline profile) : le code de canvasOS compilé à l'installation, au lieu d'être
+# interprété jusqu'à ce que le téléviseur le compile en tâche de fond, ce que Fire OS fait rarement.
+# Toute l'app : environ 300 classes, et le verre, les tuiles et le démarrage y passent tous.
+Lcom/getisolated/canvasos/**;
+HSPLcom/getisolated/canvasos/**->**(**)**

@@ -231,8 +231,8 @@ class SettingsActivity : Activity() {
             isVerticalScrollBarEnabled = false
             clipToPadding = false
             clipChildren = false
-            // A fading edge redraws through an offscreen layer while scrolling: not on weak TVs.
-            if (!Device.isLowEnd(this@SettingsActivity)) {
+            // A fading edge redraws through an offscreen layer while scrolling: not in performance mode.
+            if (!prefs.performance(this@SettingsActivity)) {
                 isVerticalFadingEdgeEnabled = true
                 setFadingEdgeLength(u(26))
             }
@@ -467,6 +467,11 @@ class SettingsActivity : Activity() {
         row(str(R.string.settings_weather_place), str(R.string.settings_weather_place_about),
             { Weather.placeLabel(prefs).ifEmpty { str(R.string.settings_weather_place_unset) } }) {}
         section(str(R.string.settings_effects))
+        row(str(R.string.settings_perf_mode), str(R.string.settings_perf_mode_about), {
+            auto(prefs.perfMode, prefs.performance(this), str(R.string.settings_on), str(R.string.settings_off))
+        }) {
+            prefs.perfMode = next(prefs.perfMode, Prefs.PERF_ON, Prefs.PERF_OFF)
+        }
         row(str(R.string.settings_focus_effect), str(R.string.settings_focus_effect_about), {
             auto(prefs.focusStyle, prefs.focusTvos(this), "tvOS", str(R.string.settings_focus_simple))
         }) {

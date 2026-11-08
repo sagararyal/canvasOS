@@ -296,12 +296,14 @@
     <string name="settings_weather_place_about">Pour choisir une autre ville : la page téléphone (onglet Réglages, section Météo), ou un ordinateur avec la commande CONFIG (weather_city).</string>
     <string name="settings_weather_place_unset">Pas encore défini</string>
     <string name="settings_effects">Effets</string>
+    <string name="settings_perf_mode">Mode performances</string>
+    <string name="settings_perf_mode_about">Activé : l\'aspect le plus léger, pour les téléviseurs peu puissants. L\'app sélectionnée s\'agrandit sans s\'incliner, le Centre de contrôle est un panneau sombre plutôt que du verre et le Top Shelf change d\'image toutes les 15 s au lieu de 8. Effet de sélection et Style du Centre de contrôle restent réglables : sur Auto, ils suivent ce mode.\nAuto l\'active sur les téléviseurs peu puissants (moins de 2,5 Go de mémoire ou de 4 cœurs, ou Android 9 et 10).</string>
     <string name="settings_focus_effect">Effet de sélection</string>
-    <string name="settings_focus_effect_about">tvOS : l\'app sélectionnée s\'agrandit, s\'incline selon la direction et un reflet passe dessus. Simple : elle s\'agrandit seulement.\nAuto choisit Simple sur les téléviseurs peu puissants.</string>
+    <string name="settings_focus_effect_about">tvOS : l\'app sélectionnée s\'agrandit, s\'incline selon la direction et un reflet passe dessus. Simple : elle s\'agrandit seulement.\nAuto choisit Simple quand le mode performances est activé.</string>
     <string name="settings_focus_simple">Simple</string>
     <string name="settings_control_center">Centre de contrôle</string>
     <string name="settings_cc_style">Style du Centre de contrôle</string>
-    <string name="settings_cc_style_about">Verre : du verre dépoli qui laisse voir l\'image derrière ; le bouton sélectionné devient blanc. Panneau : l\'ancien panneau sombre.\nAuto choisit Verre sur tous les téléviseurs.</string>
+    <string name="settings_cc_style_about">Verre : du verre dépoli qui laisse voir l\'image derrière ; le bouton sélectionné devient blanc. Panneau : l\'ancien panneau sombre.\nAuto choisit Panneau quand le mode performances est activé, Verre sinon.</string>
     <string name="settings_cc_glass">Verre</string>
     <string name="settings_cc_panel">Panneau</string>
     <string name="settings_cc_customize">Personnaliser le Centre de contrôle</string>

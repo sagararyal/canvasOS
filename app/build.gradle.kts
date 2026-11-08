@@ -115,6 +115,8 @@ dependencies {
     testImplementation("org.json:json:20240303")
     implementation("androidx.recyclerview:recyclerview:1.4.0")
     implementation("androidx.palette:palette:1.0.0")
+    // Writes the baseline profile (src/main/baseline-prof.txt) for ART when the APK is sideloaded; already pulled in by RecyclerView.
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation("dev.mobile:dadb:2.0.0")
     // Apple TV aerial screensaver.
     implementation("androidx.media3:media3-exoplayer:1.5.1")

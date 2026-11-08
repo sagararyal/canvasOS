@@ -174,18 +174,30 @@ class Prefs(ctx: Context) {
         set(v) = sp.edit().putString("cc_style", v).apply()
 
     /**
-     * The Control Center uses floating glass controls rather than one plain panel: everywhere unless
-     * the panel is chosen, as the glass costs no more per frame than the panel since its focus light went.
+     * The Control Center uses floating glass controls rather than one plain panel. On Auto, glass
+     * unless [performance] is on: opening the glass draws and blurs the home screen on the UI thread,
+     * and every control is drawn in three or five passes, which weak TVs feel.
      */
-    @Suppress("UNUSED_PARAMETER")
-    fun ccGlass(ctx: Context) = ccStyle != CC_PANEL
+    fun ccGlass(ctx: Context) = when (ccStyle) { CC_GLASS -> true; CC_PANEL -> false; else -> !performance(ctx) }
 
-    /** [AUTO], [FOCUS_TVOS] (tilt and a gliding highlight) or [FOCUS_SIMPLE] (scale and shadow only). */
+    /** [AUTO], [PERF_ON] or [PERF_OFF]; see [performance]. */
+    var perfMode: String
+        get() = sp.getString("perf_mode", AUTO)!!.takeIf { it == AUTO || it == PERF_ON || it == PERF_OFF } ?: AUTO
+        set(v) = sp.edit().putString("perf_mode", v).apply()
+
+    /**
+     * Performance mode: the lighter look, for TVs that cannot afford the full one. On Auto it follows
+     * [Device.isLowEnd]. It sets what Auto means for [focusStyle] and [ccStyle] (a choice made there
+     * still wins), slows the Top Shelf's pictures and drops the settings list's fading edge.
+     */
+    fun performance(ctx: Context) = when (perfMode) { PERF_ON -> true; PERF_OFF -> false; else -> Device.isLowEnd(ctx) }
+
+    /** [AUTO], [FOCUS_TVOS] (tilt and a gliding highlight) or [FOCUS_SIMPLE] (scale only). */
     var focusStyle: String
         get() = sp.getString("focus_style", AUTO)!!
         set(v) = sp.edit().putString("focus_style", v).apply()
 
-    fun focusTvos(ctx: Context) = when (focusStyle) { FOCUS_TVOS -> true; FOCUS_SIMPLE -> false; else -> !Device.isLowEnd(ctx) }
+    fun focusTvos(ctx: Context) = when (focusStyle) { FOCUS_TVOS -> true; FOCUS_SIMPLE -> false; else -> !performance(ctx) }
 
     /** When the boot animation plays: [INTRO_OFF], [INTRO_BOOT] (after a cold boot) or [INTRO_WAKE] (also on wake from standby). */
     var intro: String
@@ -560,6 +572,8 @@ class Prefs(ctx: Context) {
         const val CC_PANEL = "panel"
         const val FOCUS_TVOS = "tvos"
         const val FOCUS_SIMPLE = "simple"
+        const val PERF_ON = "on"
+        const val PERF_OFF = "off"
         const val INTRO_OFF = "off"
         const val INTRO_BOOT = "boot"
         const val INTRO_WAKE = "wake"

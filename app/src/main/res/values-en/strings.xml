@@ -293,12 +293,14 @@
     <string name="settings_weather_place_about">To choose another city: the Phone Page (Settings tab, Weather section), or a computer with the CONFIG command (weather_city).</string>
     <string name="settings_weather_place_unset">Not set yet</string>
     <string name="settings_effects">Effects</string>
+    <string name="settings_perf_mode">Performance mode</string>
+    <string name="settings_perf_mode_about">On: the lightest look, for low-power TVs. The selected app grows without tilting, the Control Center is a dark panel instead of glass, and the Top Shelf changes picture every 15 s instead of 8. Selection effect and Control Center style can still be set: on Auto, they follow this mode.\nAuto turns it on for low-power TVs (under 2.5 GB of memory or 4 cores, or Android 9 and 10).</string>
     <string name="settings_focus_effect">Focus Effect</string>
-    <string name="settings_focus_effect_about">tvOS: the selected app grows, tilts with the direction, and a shine passes over it. Simple: it only grows.\nAuto picks Simple on low-power TVs.</string>
+    <string name="settings_focus_effect_about">tvOS: the selected app grows, tilts with the direction, and a shine passes over it. Simple: it only grows.\nAuto picks Simple when performance mode is on.</string>
     <string name="settings_focus_simple">Simple</string>
     <string name="settings_control_center">Control Center</string>
     <string name="settings_cc_style">Control Center Style</string>
-    <string name="settings_cc_style_about">Glass: frosted glass that shows the picture behind it; the selected button turns white. Panel: the old dark panel.\nAuto picks Glass on all TVs.</string>
+    <string name="settings_cc_style_about">Glass: frosted glass that shows the picture behind it; the selected button turns white. Panel: the old dark panel.\nAuto picks Panel when performance mode is on, Glass otherwise.</string>
     <string name="settings_cc_glass">Glass</string>
     <string name="settings_cc_panel">Panel</string>
     <string name="settings_cc_customize">Customize Control Center</string>

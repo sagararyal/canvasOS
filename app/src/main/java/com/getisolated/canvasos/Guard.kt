@@ -490,6 +490,7 @@ class ConfigReceiver : BroadcastReceiver() {
         i.getStringExtra("language")?.takeIf { it in Prefs.LANGUAGES }?.let { prefs.language = it; Strings.apply(c) }
         // Looks (主屏幕设置 → 外观 / 开机动画), mostly for agents setting a TV up.
         i.getStringExtra("cc_style")?.let { prefs.ccStyle = it }
+        i.getStringExtra("perf_mode")?.let { prefs.perfMode = it }
         i.getStringExtra("focus_style")?.let { prefs.focusStyle = it }
         i.getStringExtra("clock_style")?.let { prefs.clockStyle = it }
         if (i.hasExtra("clock_24")) prefs.clock24 = i.getBooleanExtra("clock_24", false)
@@ -518,7 +519,7 @@ class ConfigReceiver : BroadcastReceiver() {
         }
         Guard.ensure(c)
         resultData = "guard=${prefs.guard} home_key=${prefs.homeKey} language=${prefs.language} keep_adb=${prefs.keepAdb} secure_settings=${Guard.hasSecureSettings(c)} " +
-            "background=${prefs.background} cc_style=${prefs.ccStyle} focus_style=${prefs.focusStyle} clock_style=${prefs.clockStyle} clock_24=${prefs.clock24} " +
+            "background=${prefs.background} perf_mode=${prefs.perfMode} performance=${prefs.performance(c)} cc_style=${prefs.ccStyle} focus_style=${prefs.focusStyle} clock_style=${prefs.clockStyle} clock_24=${prefs.clock24} " +
             "intro=${prefs.intro} intro_source=${prefs.introSource} wake_delay=${prefs.wakeDelay} brand=${prefs.brand} settings_icon=${prefs.settingsIcon} low_end=${Device.isLowEnd(c)} " +
             "phone_server=${prefs.phoneServer} dock_recents=${prefs.dockRecents} " +
             "tmdb_key=${if (prefs.tmdbKey.isNotEmpty()) "set" else "unset"} shelf=${prefs.shelfMode} unsplash_key=${if (prefs.unsplashKey.isNotEmpty()) "set" else "unset"}"

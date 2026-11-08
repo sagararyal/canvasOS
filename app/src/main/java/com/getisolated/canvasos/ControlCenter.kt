@@ -580,7 +580,8 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val px = IntArray(w * h)
         bmp.getPixels(px, 0, w, 0, 0, w, h)
         // Three box passes come close to a Gaussian blur.
-        repeat(3) { LiquidGlass.boxBlur(px, w, h, 7) }
+        val tmp = IntArray(w * h)
+        repeat(3) { LiquidGlass.boxBlur(px, w, h, 7, tmp) }
         bmp.setPixels(px, 0, w, 0, 0, w, h)
         bmp.prepareToDraw()
         return Sample(bmp, left.toFloat(), top.toFloat())
@@ -1007,6 +1008,15 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     private fun rememberFocus() {
         val id = if (expanded || morphing) CcLayout.PLAYER else idOf(panel.findFocus())
         if (!id.isNullOrEmpty()) lastFocusId = id
+    }
+
+    /** Memory is short: closed, the panel drops its blurred picture of the home screen and samples it again when it next opens. */
+    fun trimMemory() {
+        if (isOpen || destroyed) return
+        endBlurFade()
+        blur = null
+        blurShader = null
+        blurDirty = true
     }
 
     fun close() {

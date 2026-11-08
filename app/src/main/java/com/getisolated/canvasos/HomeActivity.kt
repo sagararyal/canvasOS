@@ -48,6 +48,7 @@ import java.util.concurrent.Executors
 class HomeActivity : Activity(), TileAdapter.Listener {
     companion object {
         const val SHELF_SECONDS = 8
+        const val SHELF_SECONDS_LIGHT = 15
         private const val EXTRA_GUARD = "com.getisolated.canvasos.GUARD"
         private const val EXTRA_WAKE = "com.getisolated.canvasos.WAKE"
         /** From the settings ("Personnaliser le Centre de contrôle"): the home opens with the Control Center in edit mode. */
@@ -200,12 +201,15 @@ class HomeActivity : Activity(), TileAdapter.Listener {
                 main.post {
                     if (shelfPkg == pkg && shelfShown && !control.isOpen && shelfItems === items) {
                         if (pic != null && glass != null) showShelfItem(at, pic, glass)
-                        main.postDelayed(this, SHELF_SECONDS * 1000L)
+                        main.postDelayed(this, shelfMillis())
                     }
                 }
             }
         }
     }
+
+    /** How long each Top Shelf picture stays: longer in performance mode, where each change costs a decode and a glass bake. */
+    private fun shelfMillis() = (if (prefs.performance(this)) SHELF_SECONDS_LIGHT else SHELF_SECONDS) * 1000L
 
     /** Position being dragged in "edit home screen" mode, or -1. */
     private var moving = -1
@@ -337,6 +341,14 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         }.also { it.start(if (wake) prefs.wakeDelay.toLong() else 0) }
     }
 
+    /** Left the front, or memory is short: what is rebuilt on demand goes (the tiles go in [App.onTrimMemory]). */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level < android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) return
+        synchronized(lyricsDocks) { lyricsDocks.clear() }
+        control.trimMemory()
+    }
+
     override fun onDestroy() {
         unregisterReceiver(pkgReceiver)
         netCallback?.let { cb -> runCatching { getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(cb) } }
@@ -355,7 +367,9 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     // ------------------------------------------------------------------ layout
 
     private fun buildViews() {
-        root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+        // No background of its own: the window's black shows until the first picture is up, then goes
+        // too ([showBackground]). The wallpaper covers the screen, so either would be painted for nothing on every frame.
+        root = FrameLayout(this)
         val match = { FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT) }
         scene = FrameLayout(this).apply { clipChildren = false; clipToPadding = false }
         backdrop = FrameLayout(this)
@@ -620,6 +634,9 @@ class HomeActivity : Activity(), TileAdapter.Listener {
                 if (!shelfShown) homePlayer.glassFollow(ms, curve) { drawFinalScene(it) }
                 runFade(bgTween, pic, ms, curve)
                 glassFade?.let { runFade(dockTween, it, ms, curve) }
+                // From now on the wallpaper covers the whole screen: the window's black under it would
+                // only cost a full-screen fill per frame.
+                if (first) main.postDelayed({ if (!isDestroyed && bgShown != null) window.setBackgroundDrawable(null) }, ms + 100)
             }
         }
     }
@@ -789,7 +806,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
                 showShelfItem(at, pic, glass)
                 setShelfVisible(true)
                 main.removeCallbacks(shelfAdvance)
-                main.postDelayed(shelfAdvance, SHELF_SECONDS * 1000L)
+                main.postDelayed(shelfAdvance, shelfMillis())
             }
         }
     }
@@ -890,7 +907,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     fun resumeShelfRotation() {
         if (shelfShown) {
             main.removeCallbacks(shelfAdvance)
-            main.postDelayed(shelfAdvance, SHELF_SECONDS * 1000L)
+            main.postDelayed(shelfAdvance, shelfMillis())
         }
     }
 
