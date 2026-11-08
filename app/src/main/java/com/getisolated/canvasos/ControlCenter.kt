@@ -1257,13 +1257,13 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
         val narrow = shape == Shape.CAPSULE && s.w == 2
         return when (id) {
             CcLayout.POWER -> GlassButton(str(R.string.cc_turn_off), R.drawable.ic_power, shape, narrow = narrow) {
-                confirm(str(R.string.cc_turn_off), str(R.string.cc_turn_off_msg)) { Cleaner.shutdown(ctx) }
+                confirm(str(R.string.cc_turn_off), str(if (LocalAdb.unavailable(ctx)) R.string.cc_turn_off_msg_fire else R.string.cc_turn_off_msg)) { Cleaner.shutdown(ctx) }
             }
             CcLayout.NETWORK -> GlassButton(str(R.string.cc_network), R.drawable.ic_wifi, shape, accent = Color.rgb(48, 222, 239), narrow = narrow) {
                 close()
                 runCatching { ctx.startActivity(tv.wifiIntent()) }
             }.also { networkModule = it }
-            CcLayout.SLEEP -> GlassButton(str(R.string.cc_sleep), R.drawable.ic_moon, shape, narrow = narrow) { needAdb { close(); sleepSheet() } }
+            CcLayout.SLEEP -> GlassButton(str(R.string.cc_sleep), R.drawable.ic_moon, shape, narrow = narrow) { needSleep { close(); sleepSheet() } }
                 .also { sleepModule = it }
             CcLayout.MEMORY -> GlassButton(str(R.string.cc_free_memory), R.drawable.ic_memory, shape, narrow = narrow, wrap = true) { cleanNow() }
             CcLayout.PHOTO -> GlassButton(str(R.string.cc_next_photo), R.drawable.ic_photo, shape, narrow = narrow, wrap = true) {
@@ -2853,7 +2853,7 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     }
 
     /** A remote shortcut ([KeyMap.SLEEP_TIMER]): the Veille choices, behind the local-adb check like the capsule. */
-    fun sleepTimer() = needAdb { sleepSheet() }
+    fun sleepTimer() = needSleep { sleepSheet() }
 
     /** A remote shortcut ([KeyMap.CLEAN]): the memory cleanup, as the capsule's. */
     fun cleanMemory() = cleanNow()
@@ -2876,7 +2876,18 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
             .button(str(R.string.cc_cancel)) {})
     }
 
-    private fun confirm(title: String, msg: String, action: () -> Unit) = needAdb {
+    /**
+     * Sleep and power off go through local adb, or on Fire OS (no local adb, [LocalAdb.unavailable])
+     * through the guard's service, which then has to be on.
+     */
+    private fun needSleep(action: () -> Unit) {
+        if (!LocalAdb.unavailable(ctx)) return needAdb(action)
+        if (Cleaner.canSleep(ctx)) action() else home.showSheet(Sheet(host).title(str(R.string.cc_fire_guard_off))
+            .message(str(R.string.cc_fire_guard_off_msg))
+            .button(str(R.string.cc_ok)) {})
+    }
+
+    private fun confirm(title: String, msg: String, action: () -> Unit) = needSleep {
         home.showSheet(Sheet(host).title(str(R.string.cc_confirm_title, title)).message(msg)
             .button(title) { action() }
             .button(str(R.string.cc_cancel)) {})

@@ -15,6 +15,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.getisolated.canvasos.tv.FireOsAdapter
 import com.getisolated.canvasos.tv.TvControls
 
 /**
@@ -581,8 +582,8 @@ class SettingsActivity : Activity() {
             val next = opts[(opts.indexOf(idleMinutes()) + 1) % opts.size]
             v.text = str(R.string.settings_applying)
             Thread {
-                val ok = LocalAdb.shell(applicationContext, "settings put system screen_off_timeout ${next * 60_000}") != null
-                runOnUiThread { v.text = if (ok) minutesLabel(next) else str(R.string.settings_local_debug_required) }
+                val ok = !LocalAdb.unavailable(applicationContext) && LocalAdb.shell(applicationContext, "settings put system screen_off_timeout ${next * 60_000}") != null
+                runOnUiThread { v.text = if (ok) minutesLabel(next) else needed() }
             }.start()
         }
         row(str(R.string.settings_frame_seconds), str(R.string.settings_frame_seconds_about), { "${prefs.frameSeconds} s" }) {
@@ -647,8 +648,8 @@ class SettingsActivity : Activity() {
             val on = !prefs.captureKeys
             v.text = str(R.string.settings_applying)
             Thread {
-                val ok = (Guard.hasSecureSettings(this) || Guard.grantViaLocalAdb(applicationContext)) && Guard.setCaptureKeys(applicationContext, on)
-                runOnUiThread { v.text = if (!ok) str(R.string.settings_local_debug_required) else if (on) str(R.string.settings_on) else str(R.string.settings_off) }
+                val ok = (Guard.hasSecureSettings(this) || (!LocalAdb.unavailable(this) && Guard.grantViaLocalAdb(applicationContext))) && Guard.setCaptureKeys(applicationContext, on)
+                runOnUiThread { v.text = if (!ok) needed() else if (on) str(R.string.settings_on) else str(R.string.settings_off) }
             }.start()
         }
     }
@@ -846,7 +847,8 @@ class SettingsActivity : Activity() {
             open(Page.KEEP)
         }
         section(str(R.string.settings_power))
-        row(str(R.string.settings_power_key), str(R.string.settings_power_key_about), {
+        // Fire OS refuses apps their own adb ([LocalAdb.unavailable]), which the full shutdown needs.
+        if (!LocalAdb.unavailable(this)) row(str(R.string.settings_power_key), str(R.string.settings_power_key_about), {
             if (prefs.shutdownOnPowerKey) str(R.string.settings_power_shutdown) else str(R.string.settings_power_sleep)
         }) {
             prefs.shutdownOnPowerKey = !prefs.shutdownOnPowerKey
@@ -891,6 +893,9 @@ class SettingsActivity : Activity() {
         }
     }
 
+    /** What a setting that needs secure settings lacks: local adb, or on Fire OS a computer. */
+    private fun needed() = str(if (LocalAdb.unavailable(this)) R.string.settings_computer_required else R.string.settings_local_debug_required)
+
     /** Système: debugging, the home guard, the TV's own settings, updates, the version. */
     private fun systemGroup() {
         section(str(R.string.settings_language))
@@ -902,7 +907,8 @@ class SettingsActivity : Activity() {
             showSheet(s)
         }
         section(str(R.string.settings_debugging))
-        row(str(R.string.settings_local_debug), str(R.string.settings_local_debug_about),
+        if (LocalAdb.unavailable(this)) row(str(R.string.settings_local_debug), str(R.string.settings_local_debug_fire_about), { str(R.string.settings_local_debug_fire) }) {}
+        else row(str(R.string.settings_local_debug), str(R.string.settings_local_debug_about),
             { if (prefs.adbAuthorized) str(R.string.settings_allowed) else str(R.string.settings_not_allowed_press) }) { v ->
             v.text = str(R.string.settings_choose_always_allow)
             Thread {
@@ -916,9 +922,9 @@ class SettingsActivity : Activity() {
             val on = !prefs.keepAdb
             v.text = str(R.string.settings_applying)
             Thread {
-                val ok = !on || Guard.hasSecureSettings(this) || Guard.grantViaLocalAdb(applicationContext)
+                val ok = !on || Guard.hasSecureSettings(this) || (!LocalAdb.unavailable(this) && Guard.grantViaLocalAdb(applicationContext))
                 if (ok) { prefs.keepAdb = on; Guard.ensureAdb(applicationContext) }
-                runOnUiThread { v.text = if (ok) onOff(prefs.keepAdb) else str(R.string.settings_local_debug_required) }
+                runOnUiThread { v.text = if (ok) onOff(prefs.keepAdb) else needed() }
             }.start()
         }
         row(str(R.string.settings_ip), str(R.string.settings_ip_about), { Net.lanAddress(this) ?: str(R.string.settings_not_connected) }) {}
@@ -930,14 +936,15 @@ class SettingsActivity : Activity() {
                 val on = !prefs.guard
                 v.text = str(R.string.settings_applying)
                 Thread {
-                    val ok = (Guard.hasSecureSettings(this) || Guard.grantViaLocalAdb(applicationContext)) && Guard.setEnabled(applicationContext, on)
+                    val ok = (Guard.hasSecureSettings(this) || (!LocalAdb.unavailable(this) && Guard.grantViaLocalAdb(applicationContext))) && Guard.setEnabled(applicationContext, on)
                     runOnUiThread {
-                        v.text = if (!ok) str(R.string.settings_local_debug_required) else if (on) str(R.string.settings_on_f) else str(R.string.settings_off_f)
+                        v.text = if (!ok) needed() else if (on) str(R.string.settings_on_f) else str(R.string.settings_off_f)
                         if (ok && on) Toast.makeText(this, str(R.string.settings_guard_on_toast), Toast.LENGTH_LONG).show()
                     }
                 }.start()
             }
-            row(str(R.string.settings_home_key), str(R.string.settings_home_key_about),
+            // Fire OS never lets the Home key reach an accessibility service: nothing to switch.
+            if (!FireOsAdapter.isFireOs()) row(str(R.string.settings_home_key), str(R.string.settings_home_key_about),
                 { onOff(prefs.homeKey) }) { v ->
                 prefs.homeKey = !prefs.homeKey
                 HomeGuardService.refreshFilter()
@@ -993,6 +1000,10 @@ class SettingsActivity : Activity() {
             val mb = if (update.size > 0) " (${str(R.string.settings_mb, (update.size + 524_288) / 1_048_576)})" else ""
             val notes = if (update.notes.isEmpty()) "" else "\n\n" + update.notes.take(400)
             if (!offered) return@Thread say(updateValue(), str(R.string.settings_update_found, update.version, mb) + notes)
+            if (LocalAdb.unavailable(applicationContext)) {
+                updateNote = str(R.string.settings_update_computer)
+                return@Thread say(updateNote!!, str(R.string.settings_update_computer_msg))
+            }
             if (!prefs.adbAuthorized) {
                 say(str(R.string.settings_choose_always_allow))
                 if (LocalAdb.shell(applicationContext, "echo ok", 60_000) == null) {

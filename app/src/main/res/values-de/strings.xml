@@ -806,4 +806,17 @@
     <string name="sys_tv_input_picker">%1$s-Eingangsauswahl</string>
     <string name="sys_tv_live_channels">Live-Kanäle</string>
     <string name="sys_tv_current_home">Aktuell: Home</string>
+
+    <!-- Fire TV -->
+    <string name="guard_fire_name">Home-Schutz (Fire TV)</string>
+    <string name="guard_fire_description">Wenn Amazons Home-Bildschirm in den Vordergrund kommt, holt er den Home-Bildschirm zurück. Damit die Einstellungen und der Appstore offen bleiben, die Amazon über seinen Home-Bildschirm öffnet, liest er die IDs der Tabs auf Amazons Home-Bildschirm, ohne Text zu lesen.</string>
+    <string name="cc_turn_off_msg_fire">Der Fernseher geht in den Ruhezustand: Fire OS erlaubt einer App nicht, ihn ganz auszuschalten. Schalte ihn mit der Ein/Aus-Taste der Fernbedienung wieder ein.</string>
+    <string name="cc_fire_guard_off">Home-Schutz ist aus</string>
+    <string name="cc_fire_guard_off_msg">Auf Fire TV läuft „Standby“ über den Home-Schutz. Schalte ihn unter Home-Einstellungen → System ein; verlangt er einen Computer, schaltet ein Computer ihn per adb ein.</string>
+    <string name="home_adb_fire_unavailable">Fire OS erlaubt Apps kein lokales Debugging mehr; das kann nur ein Computer (adb)</string>
+    <string name="settings_local_debug_fire">Auf Fire OS nicht verfügbar</string>
+    <string name="settings_local_debug_fire_about">Fire OS erlaubt Apps kein lokales Debugging mehr. Der Ruhezustand läuft über den Home-Schutz; für den Rest (Berechtigungen, Updates) verbindet sich ein Computer mit dem Fernseher (adb).</string>
+    <string name="settings_computer_required">Computer nötig (adb)</string>
+    <string name="settings_update_computer">Computer nötig</string>
+    <string name="settings_update_computer_msg">Fire OS erlaubt canvasOS nicht, sich selbst zu installieren: installiere diese Version von einem Computer (adb install -r).</string>
 </resources>

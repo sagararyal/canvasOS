@@ -806,4 +806,17 @@
     <string name="sys_tv_input_picker">%1$s Input Picker</string>
     <string name="sys_tv_live_channels">Live Channels</string>
     <string name="sys_tv_current_home">Current: Home</string>
+
+    <!-- Fire TV -->
+    <string name="guard_fire_name">Home Guard (Fire TV)</string>
+    <string name="guard_fire_description">When Amazon\'s Home comes to the front, brings back the Home screen. To leave Settings and the Appstore open, which Amazon opens from its Home, reads the IDs of the tabs on Amazon\'s Home, without reading any text.</string>
+    <string name="cc_turn_off_msg_fire">The TV goes to standby: Fire OS does not let an app turn it off completely. Turn it back on with the power button on the remote.</string>
+    <string name="cc_fire_guard_off">Home Guard Is Off</string>
+    <string name="cc_fire_guard_off_msg">On Fire TV, Sleep goes through Home Guard. Turn it on in Home Settings → System; if it asks for a computer, a computer turns it on over adb.</string>
+    <string name="home_adb_fire_unavailable">Fire OS no longer lets apps use local debugging; only a computer can (adb)</string>
+    <string name="settings_local_debug_fire">Not available on Fire OS</string>
+    <string name="settings_local_debug_fire_about">Fire OS no longer lets apps use local debugging. Sleep goes through Home Guard; for the rest (permissions, updates), a computer connects to the TV (adb).</string>
+    <string name="settings_computer_required">Computer required (adb)</string>
+    <string name="settings_update_computer">Computer required</string>
+    <string name="settings_update_computer_msg">Fire OS does not let canvasOS install itself: install this version from a computer (adb install -r).</string>
 </resources>

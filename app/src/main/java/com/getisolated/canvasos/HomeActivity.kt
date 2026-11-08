@@ -1618,7 +1618,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         if (number.isEmpty()) return
         // Blocking for a few seconds (the digits wait for the player): off the io queue the tiles use.
         Thread {
-            if (!tv.showChannel(number) && !prefs.adbAuthorized) main.post {
+            if (!tv.showChannel(number) && !prefs.adbAuthorized && !LocalAdb.unavailable(this)) main.post {
                 Toast.makeText(this, str(R.string.home_channel_needs_adb), Toast.LENGTH_LONG).show()
             }
         }.start()
@@ -1840,7 +1840,8 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     }
 
     private fun askAdbAuthorization() {
-        if (prefs.adbAuthorized || isFinishing) return
+        // Fire OS refuses apps their own adb ([LocalAdb.unavailable]): asking would lead nowhere.
+        if (prefs.adbAuthorized || isFinishing || LocalAdb.unavailable(this)) return
         showSheet(Sheet(root).title(str(R.string.home_enable_power_memory))
             .message(str(R.string.home_adb_once_message))
             .button(str(R.string.home_start)) { authorizeAdb() }
@@ -1852,7 +1853,11 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         io.execute {
             val ok = LocalAdb.shell(this, "echo ok", 60_000) != null
             main.post {
-                Toast.makeText(this, if (ok) str(R.string.home_adb_done) else str(R.string.home_adb_refused), Toast.LENGTH_LONG).show()
+                Toast.makeText(this, str(when {
+                    ok -> R.string.home_adb_done
+                    LocalAdb.unavailable(this) -> R.string.home_adb_fire_unavailable
+                    else -> R.string.home_adb_refused
+                }), Toast.LENGTH_LONG).show()
                 control.refresh()
             }
         }
