@@ -1456,7 +1456,8 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
      * control being moved). The controls' own actions do not run while editing.
      */
     fun preKey(e: KeyEvent): Boolean {
-        if (!isOpen || !editing || expanded || morphing) return false
+        if (!isOpen || expanded || morphing) return false
+        if (!editing) return holdToEdit(e)
         val code = e.keyCode
         val arrow = code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT ||
             code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN
@@ -1481,8 +1482,40 @@ class ControlCenter(private val home: HomeActivity, private val host: FrameLayou
     /** OK held on a control while the panel is open (not editing): edit mode, on the focused control. False when it does not apply. */
     fun editFromHold(): Boolean {
         if (!isOpen || editing || expanded || morphing) return false
+        hold.cancel()
         startEdit(false)
         return true
+    }
+
+    /**
+     * OK on a control while the panel is open, outside edit mode: a press does what the control
+     * does, a hold (the long-press timeout, timed here rather than by repeat events, which some
+     * remotes never send) opens edit mode on it. The player keeps its own keys, and its hold, the
+     * large player.
+     */
+    private fun holdToEdit(e: KeyEvent): Boolean {
+        val code = e.keyCode
+        if (!isConfirm(code)) return false
+        val f = panel.findFocus() ?: return false
+        val id = idOf(f)
+        if (id.isNullOrEmpty() || id == CcLayout.PLAYER) return false
+        when (e.action) {
+            KeyEvent.ACTION_DOWN -> {
+                if (e.repeatCount == 0) hold.down(f, code, ViewConfiguration.getLongPressTimeout().toLong()) {
+                    if (isOpen && !editing && !expanded) startEdit(false)
+                } else if (e.isLongPress && !editing) {
+                    // A remote that repeats the held key: the system flags the hold, no need to wait.
+                    hold.cancel()
+                    startEdit(false)
+                }
+                return true
+            }
+            KeyEvent.ACTION_UP -> {
+                if (hold.up(f, code) && !editing) f.performClick()
+                return true
+            }
+        }
+        return false
     }
 
     private fun startEdit(first: Boolean) {
