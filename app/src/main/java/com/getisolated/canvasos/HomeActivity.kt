@@ -1541,6 +1541,15 @@ class HomeActivity : Activity(), TileAdapter.Listener {
                 v.performLongClick()
                 return true
             }
+            // OK held on a control of the open Control Center (the player keeps its own hold, the
+            // large player, above): edit mode, as from the home screen's button.
+            if (event.action == KeyEvent.ACTION_DOWN && event.isLongPress && control.isOpen && sheets.isEmpty() &&
+                event.eventTime - event.downTime < ViewConfiguration.getLongPressTimeout() / 2 && control.editFromHold()
+            ) {
+                super.dispatchKeyEvent(KeyEvent.changeFlags(KeyEvent.changeAction(event, KeyEvent.ACTION_UP), event.flags or KeyEvent.FLAG_CANCELED))
+                dropOkUp = true
+                return true
+            }
         }
         // The Control Center's grid: edit mode takes the arrows and OK first; otherwise a control
         // keeps the keys it uses (the slider's Left and Right) and the panel moves focus with the rest.
