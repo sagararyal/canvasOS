@@ -89,6 +89,10 @@ class HomeActivity : Activity(), TileAdapter.Listener {
     private var intro: Intro? = null
     private lateinit var avatar: IconButton
     private lateinit var netButton: IconButton
+    /** Shown right of [netButton] while a VPN carries the traffic; the system's own VPN icon. */
+    private lateinit var vpnIcon: android.widget.ImageView
+    /** Follows the default network, so the VPN icon comes and goes while the home screen is up. */
+    private var netCallback: ConnectivityManager.NetworkCallback? = null
     private lateinit var ccButton: IconButton
     /** The small player top left ([Prefs.homePlayer]): cover, title and artist of what plays; OK opens its app. */
     private lateinit var homePlayer: HomePlayer
@@ -335,6 +339,8 @@ class HomeActivity : Activity(), TileAdapter.Listener {
 
     override fun onDestroy() {
         unregisterReceiver(pkgReceiver)
+        netCallback?.let { cb -> runCatching { getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(cb) } }
+        netCallback = null
         main.removeCallbacksAndMessages(null)
         homePlayer.shutdown()
         control.destroy()
@@ -436,6 +442,14 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         icons.addView(clockText, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
         buildWeather(icons)
         icons.addView(netButton, LinearLayout.LayoutParams(dp(28), dp(28)).apply { marginEnd = dp(6) })
+        vpnIcon = android.widget.ImageView(this).apply {
+            setImageDrawable(vpnDrawable())
+            setColorFilter(Color.WHITE)
+            contentDescription = "VPN connecté"
+            isFocusable = false
+            visibility = View.GONE
+        }
+        icons.addView(vpnIcon, LinearLayout.LayoutParams(dp(16), dp(16)).apply { marginEnd = dp(10) })
         icons.addView(ccButton, LinearLayout.LayoutParams(dp(28), dp(28)))
         avatar = IconButton(this, 0, portrait = true) { profileSheet() }.apply {
             id = View.generateViewId()
@@ -946,6 +960,33 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         val wired = caps?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true
         netButton.setIcon(if (wired) R.drawable.ic_ethernet else R.drawable.ic_wifi)
         netButton.alpha = if (caps == null) 0.4f else 1f
+        // A VPN app (NordVPN, WireGuard, Proton…) becomes the default network while connected.
+        val vpn = caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        if (::vpnIcon.isInitialized) vpnIcon.visibility = if (vpn) View.VISIBLE else View.GONE
+    }
+
+    /** The system's VPN status icon (the key of the status bar), or ours where the firmware has none. */
+    private fun vpnDrawable(): android.graphics.drawable.Drawable? {
+        val sys = android.content.res.Resources.getSystem()
+        for (name in listOf("vpn_connected", "stat_sys_vpn_ic")) {
+            val id = sys.getIdentifier(name, "drawable", "android")
+            if (id != 0) runCatching { sys.getDrawable(id, theme) }.getOrNull()?.let { return it }
+        }
+        return getDrawable(R.drawable.ic_vpn)
+    }
+
+    /** VPN up or down while the home screen is shown: the icon follows without waiting for the next resume. */
+    private fun watchNetwork() {
+        if (netCallback != null) return
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: android.net.Network, caps: NetworkCapabilities) {
+                main.post { if (!isDestroyed) updateNetworkIcon() }
+            }
+            override fun onLost(network: android.net.Network) {
+                main.post { if (!isDestroyed) updateNetworkIcon() }
+            }
+        }
+        if (runCatching { getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(cb) }.isSuccess) netCallback = cb
     }
 
     /** Pins a TV input to the grid, or takes it off (out of its folder too, so it does not come back there). */
@@ -1737,6 +1778,7 @@ class HomeActivity : Activity(), TileAdapter.Listener {
         restartIdle()
         applyBackground()
         updateNetworkIcon()
+        watchNetwork()
         checkCustomTiles()
         main.removeCallbacks(ticker)
         ticker.run()
